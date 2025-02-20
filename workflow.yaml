@@ -10,13 +10,64 @@ spec:
     - name: pipeline-dag
       dag:
         tasks:
-          - name: run-oc-1739878458996
-            template: run-oc-1739878458996
-    - name: run-oc-1739878458996
+          - name: apply-pipeline-1740038026195-pipeline
+            template: apply-resources
+            arguments:
+              parameters:
+                - name: url
+                  value: https://raw.githubusercontent.com/rampadc/hi-deployer/main/pipeline.yaml
+          - name: pipeline-1740038026195
+            template: pipeline-1740038026195
+            dependencies:
+              - apply-pipeline-1740038026195-pipeline
+          - name: run-oc-1740038028544
+            template: run-oc-1740038028544
+            dependencies:
+              - pipeline-1740038026195
+          - name: run-oc-1740038031270
+            template: run-oc-1740038031270
+            dependencies:
+              - pipeline-1740038026195
+    - name: apply-resources
+      inputs:
+        parameters:
+          - name: url
       container:
         image: quay.io/openshift/origin-cli:latest
         command:
           - /bin/bash
         args:
           - "-c"
-          - echo "Hello World"
+          - oc apply -f {{inputs.parameters.url}}
+    - name: pipeline-1740038026195
+      resource:
+        action: create
+        manifest: |
+          apiVersion: tekton.dev/v1
+          kind: PipelineRun
+          metadata:
+            generateName: pipeline-1740038026195-pr-
+          spec:
+            pipelineRef:
+              name: hi-deployer
+            params:
+              - name: name
+                value: hello world
+        successCondition: status.conditions.0.status == True
+        failureCondition: status.conditions.0.status == False
+    - name: run-oc-1740038028544
+      container:
+        image: quay.io/openshift/origin-cli:latest
+        command:
+          - /bin/bash
+        args:
+          - "-c"
+          - oc get pod
+    - name: run-oc-1740038031270
+      container:
+        image: quay.io/openshift/origin-cli:latest
+        command:
+          - /bin/bash
+        args:
+          - "-c"
+          - oc get deploy
