@@ -10,24 +10,27 @@ spec:
     - name: pipeline-dag
       dag:
         tasks:
-          - name: apply-pipeline-1740038026195-pipeline
+          - name: apply-hi-deployer-pipeline
             template: apply-resources
             arguments:
               parameters:
                 - name: url
                   value: https://raw.githubusercontent.com/rampadc/hi-deployer/main/pipeline.yaml
-          - name: pipeline-1740038026195
-            template: pipeline-1740038026195
+          - name: hi-deployer
+            template: hi-deployer
             dependencies:
-              - apply-pipeline-1740038026195-pipeline
-          - name: run-oc-1740038028544
-            template: run-oc-1740038028544
+              - apply-hi-deployer-pipeline
+              - pre
+          - name: pre
+            template: pre
+          - name: post
+            template: post
             dependencies:
-              - pipeline-1740038026195
-          - name: run-oc-1740038031270
-            template: run-oc-1740038031270
+              - hi-deployer
+          - name: post2
+            template: post2
             dependencies:
-              - pipeline-1740038026195
+              - hi-deployer
     - name: apply-resources
       inputs:
         parameters:
@@ -39,35 +42,43 @@ spec:
         args:
           - "-c"
           - oc apply -f {{inputs.parameters.url}}
-    - name: pipeline-1740038026195
+    - name: hi-deployer
       resource:
         action: create
         manifest: |
           apiVersion: tekton.dev/v1
           kind: PipelineRun
           metadata:
-            generateName: pipeline-1740038026195-pr-
+            generateName: hi-deployer-pr-
           spec:
             pipelineRef:
               name: hi-deployer
             params:
               - name: name
-                value: hello world
+                value: deployer
         successCondition: status.conditions.0.status == True
         failureCondition: status.conditions.0.status == False
-    - name: run-oc-1740038028544
+    - name: pre
       container:
         image: quay.io/openshift/origin-cli:latest
         command:
           - /bin/bash
         args:
           - "-c"
-          - oc get pod
-    - name: run-oc-1740038031270
+          - echo "Pre"
+    - name: post
       container:
         image: quay.io/openshift/origin-cli:latest
         command:
           - /bin/bash
         args:
           - "-c"
-          - oc get deploy
+          - echo "Post 1"
+    - name: post2
+      container:
+        image: quay.io/openshift/origin-cli:latest
+        command:
+          - /bin/bash
+        args:
+          - "-c"
+          - echo "Post 2"
